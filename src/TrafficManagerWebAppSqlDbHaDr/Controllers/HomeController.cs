@@ -1,16 +1,34 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using TrafficManagerWebAppSqlDbHaDr.Models;
+using TrafficManagerWebAppSqlDbHaDr.ViewModels;
 
 namespace TrafficManagerWebAppSqlDbHaDr.Controllers
 {
     public class HomeController : Controller
     {
-        public IActionResult Index()
+        private MySettings _mySettings;
+        private AppDbContext _dbContext;
+
+        public HomeController(IOptions<MySettings> mySettings, AppDbContext dbContext)
         {
-            return View();
+            _mySettings = mySettings.Value;
+            _dbContext = dbContext;
+        }
+
+        public async Task<IActionResult> Index()
+        {
+            var viewModel = new HomeViewModel {WebApp = _mySettings.WebApp};
+            var firstMovie = await _dbContext.Movies.FirstAsync();
+            viewModel.FirstMovieTitle = firstMovie.Title;
+            var splitStrings = _mySettings.SqlConnectionString.Split(';');
+            splitStrings = splitStrings[0].Split('=');
+            viewModel.SqlServer = splitStrings[1];
+
+            return View(viewModel);
         }
 
         public IActionResult About()
