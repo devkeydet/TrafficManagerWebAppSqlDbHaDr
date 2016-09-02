@@ -169,7 +169,8 @@
           "name": "web",
           "type": "sourcecontrols",
           "dependsOn": [
-            "[resourceId('Microsoft.Web/Sites', variables('primaryWebappName'))]"
+            "[resourceId('Microsoft.Web/Sites', variables('primaryWebappName'))]",
+            "appsettings"
           ],
           "properties": {
             "RepoUrl": "[parameters('repoURL')]",
