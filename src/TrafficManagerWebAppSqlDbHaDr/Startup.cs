@@ -50,7 +50,15 @@ namespace TrafficManagerWebAppSqlDbHaDr
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, AppDbContext dbContext)
         {
+            //TODO: Figure out how to do this with kudu and dnx
             dbContext.Database.Migrate();
+            //TODO: Fix this once entity framework core allows seed data.  See https://docs.efproject.net/en/latest/efcore-vs-ef6/features.html
+            if (dbContext.Movies.FirstOrDefault() == null)
+            {
+                dbContext.Movies.Add(new Movie {Title = "Stand by Me"});
+                dbContext.SaveChanges();
+            }
+
             loggerFactory.AddConsole(Configuration.GetSection("Logging"));
             loggerFactory.AddDebug();
 

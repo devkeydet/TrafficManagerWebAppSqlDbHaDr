@@ -1,0 +1,182 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "appServicePlanSKU": {
+      "type": "string",
+      "allowedValues": [
+        "S1",
+        "S2",
+        "S3",
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+      ],
+      "defaultValue": "S1"
+    },
+    "repoURL": {
+      "type": "string",
+      "defaultValue": "https://github.com/devkeydet/TrafficManagerWebAppsqlDbHaDr.git",
+      "metadata": {
+        "description": "The URL for the GitHub repository that contains the project to deploy."
+      }
+    },
+    "branch": {
+      "type": "string",
+      "defaultValue": "master",
+      "metadata": {
+        "description": "The branch of the GitHub repository to use."
+      }
+    },
+    "sqlServerAdminLogin": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sqlServerAdminLoginPassword": {
+      "type": "securestring"
+    },
+    "sqlDbCollation": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "SQL_Latin1_General_CP1_CI_AS"
+    },
+    "sqlDbEdition": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium"
+      ]
+    },
+    "sqlDbRequestedServiceObjectiveName": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "S0",
+        "S1",
+        "S2",
+        "S3",
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "metadata": {
+        "description": "Describes the performance level for Edition"
+      }
+    }
+  },
+  "variables": {
+    "primaryWebappName": "[concat(parameters('appName'),'-primary-wa')]",
+    "primaryAppServicePlanName": "[concat(parameters('appName'),'-primary-asp')]",
+    "primarySqlServerName": "[concat(parameters('appName'),'-primary-sqlserver')]",
+    "primarySqlDbName": "[concat(parameters('appName'),'-primary-db')]"
+  },
+  "resources": [
+
+    {
+      "name": "[variables('primarySqlServerName')]",
+      "type": "Microsoft.Sql/servers",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2014-04-01-preview",
+      "dependsOn": [],
+      "properties": {
+        "administratorLogin": "[parameters('sqlServerAdminLogin')]",
+        "administratorLoginPassword": "[parameters('sqlServerAdminLoginPassword')]"
+      },
+      "resources": [
+        {
+          "name": "AllowAllWindowsAzureIps",
+          "type": "firewallrules",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[concat('Microsoft.Sql/servers/', variables('primarySqlServerName'))]"
+          ],
+          "properties": {
+            "startIpAddress": "0.0.0.0",
+            "endIpAddress": "0.0.0.0"
+          }
+        },
+        {
+          "name": "[variables('primarySqlDbName')]",
+          "type": "databases",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[variables('primarySqlServerName')]"
+          ],
+          "tags": {
+            "displayName": "sqlDb"
+          },
+          "properties": {
+            "collation": "[parameters('sqlDbCollation')]",
+            "edition": "[parameters('sqlDbEdition')]",
+            "maxSizeBytes": "1073741824",
+            "requestedServiceObjectiveName": "[parameters('sqlDbRequestedServiceObjectiveName')]"
+          }
+        }
+      ]
+    },
+    {
+      "apiVersion": "2015-08-01",
+      "name": "[variables('primaryAppServicePlanName')]",
+      "type": "Microsoft.Web/serverfarms",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "[parameters('appServicePlanSKU')]",
+        "capacity": 2
+      },
+      "properties": {
+        "name": "[variables('primaryAppServicePlanName')]"
+      }
+    },
+    {
+      "name": "[variables('primaryWebappName')]",
+      "type": "Microsoft.Web/sites",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-08-01",
+      "dependsOn": [
+        "[concat('Microsoft.Web/serverfarms/', variables('primaryAppServicePlanName'))]"
+      ],
+      "properties": {
+        "name": "[variables('primaryWebappName')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms/', variables('primaryAppServicePlanName'))]"
+      },
+      "resources": [
+        {
+          "name": "appsettings",
+          "type": "config",
+          "apiVersion": "2015-08-01",
+          "dependsOn": [
+            "[concat('Microsoft.Web/sites/', variables('primaryWebappName'))]",
+            "[variables('primarySqlDbName')]"
+          ],
+          "properties": {
+            "MySettings:WebApp": "Primary",
+            "MySettings:SqlConnectionString": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('primarySqlServerName'))).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('primarySqlDbName'), ';User Id=', parameters('sqlServerAdminLogin'), '@', variables('primarySqlServerName'), ';Password=', parameters('sqlServerAdminLoginPassword'), ';')]"
+          }
+        },
+        {
+          "apiVersion": "2015-08-01",
+          "name": "web",
+          "type": "sourcecontrols",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', variables('primaryWebappName'))]"
+          ],
+          "properties": {
+            "RepoUrl": "[parameters('repoURL')]",
+            "branch": "[parameters('branch')]",
+            "IsManualIntegration": true
+          }
+        }
+      ]
+    }
+  ]
+}
