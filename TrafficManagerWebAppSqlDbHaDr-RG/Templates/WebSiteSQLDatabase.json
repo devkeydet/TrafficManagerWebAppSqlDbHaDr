@@ -1,13 +1,16 @@
 ﻿{
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
+  "outputs": {
+
+  }
   "parameters": {
     "appName": {
       "type": "string",
       "minLength": 1,
       "defaultValue": "[uniqueString(resourceGroup().id)]"
     },
-    "region": {
+    "secondaryRegion": {
       "type": "string",
       "defaultValue": "Central US"
     },
@@ -44,8 +47,7 @@
       "defaultValue": "[parameters('appName')]"
     },
     "sqlServerAdminLoginPassword": {
-      "type": "securestring",
-      "defaultValue": "Pass@word1"
+      "type": "securestring"
     },
     "sqlDbCollation": {
       "type": "string",
@@ -80,11 +82,13 @@
     }
   },
   "variables": {
-    "primaryWebappName": "[concat(parameters('appName'),'-primary-wa')]",
+    "primaryWebAppName": "[concat(parameters('appName'),'-primary-wa')]",
+    "secondaryWebAppName": "[concat(parameters('appName'),'-secondary-wa')]",
     "primaryAppServicePlanName": "[concat(parameters('appName'),'-primary-asp')]",
     "secondaryAppServicePlanName": "[concat(parameters('appName'),'-secondary-asp')]",
     "primarySqlServerName": "[concat(parameters('appName'),'-primary-sqlserver')]",
-    "primarySqlDbName": "[concat(parameters('appName'),'-primary-db')]"
+    "dbName": "[concat(parameters('appName'),'-db')]",
+    "secondarySqlServerName": "[concat(parameters('appName'),'-secondary-sqlserver')]"
   },
   "resources": [
 
@@ -96,7 +100,8 @@
       "dependsOn": [],
       "properties": {
         "administratorLogin": "[parameters('sqlServerAdminLogin')]",
-        "administratorLoginPassword": "[parameters('sqlServerAdminLoginPassword')]"
+        "administratorLoginPassword": "[parameters('sqlServerAdminLoginPassword')]",
+        "version": "12.0"
       },
       "resources": [
         {
@@ -113,7 +118,7 @@
           }
         },
         {
-          "name": "[variables('primarySqlDbName')]",
+          "name": "[variables('dbName')]",
           "type": "databases",
           "location": "[resourceGroup().location]",
           "apiVersion": "2014-04-01-preview",
@@ -146,7 +151,7 @@
       }
     },
     {
-      "name": "[variables('primaryWebappName')]",
+      "name": "[variables('primaryWebAppName')]",
       "type": "Microsoft.Web/sites",
       "location": "[resourceGroup().location]",
       "apiVersion": "2015-08-01",
@@ -154,7 +159,7 @@
         "[concat('Microsoft.Web/serverfarms/', variables('primaryAppServicePlanName'))]"
       ],
       "properties": {
-        "name": "[variables('primaryWebappName')]",
+        "name": "[variables('primaryWebAppName')]",
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms/', variables('primaryAppServicePlanName'))]"
       },
       "resources": [
@@ -163,11 +168,11 @@
           "type": "config",
           "apiVersion": "2015-08-01",
           "dependsOn": [
-            "[concat('Microsoft.Web/sites/', variables('primaryWebappName'))]"
+            "[concat('Microsoft.Web/sites/', variables('primaryWebAppName'))]"
           ],
           "properties": {
             "MySettings:WebApp": "Primary",
-            "MySettings:SqlConnectionString": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('primarySqlServerName'))).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('primarySqlDbName'), ';User Id=', parameters('sqlServerAdminLogin'), '@', variables('primarySqlServerName'), ';Password=', parameters('sqlServerAdminLoginPassword'), ';')]"
+            "MySettings:SqlConnectionString": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('primarySqlServerName'))).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('dbName'), ';User Id=', parameters('sqlServerAdminLogin'), '@', variables('primarySqlServerName'), ';Password=', parameters('sqlServerAdminLoginPassword'), ';')]"
           }
         },
         {
@@ -175,7 +180,7 @@
           "name": "web",
           "type": "sourcecontrols",
           "dependsOn": [
-            "[resourceId('Microsoft.Web/Sites', variables('primaryWebappName'))]",
+            "[resourceId('Microsoft.Web/Sites', variables('primaryWebAppName'))]",
             "appsettings"
           ],
           "properties": {
@@ -187,14 +192,125 @@
       ]
     },
     {
+      "name": "[variables('secondarySqlServerName')]",
+      "type": "Microsoft.Sql/servers",
+      "location": "[parameters('secondaryRegion')]",
+      "apiVersion": "2014-04-01-preview",
+      "dependsOn": [],
+      "properties": {
+        "administratorLogin": "[parameters('sqlServerAdminLogin')]",
+        "administratorLoginPassword": "[parameters('sqlServerAdminLoginPassword')]",
+        "version": "12.0"
+      },
+      "resources": [
+        {
+          "name": "AllowAllWindowsAzureIps",
+          "type": "firewallrules",
+          "location": "[parameters('secondaryRegion')]",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[concat('Microsoft.Sql/servers/', variables('secondarySqlServerName'))]"
+          ],
+          "properties": {
+            "startIpAddress": "0.0.0.0",
+            "endIpAddress": "0.0.0.0"
+          }
+        }
+      ]
+    },
+    {
       "name": "[variables('secondaryAppServicePlanName')]",
       "type": "Microsoft.Web/serverfarms",
-      "location": "[parameters('region')]",
+      "location": "[parameters('secondaryRegion')]",
       "apiVersion": "2014-06-01",
       "dependsOn": [],
       "properties": {
         "name": "[variables('secondaryAppServicePlanName')]",
         "sku": "Free"
+      }
+    },
+    {
+      "name": "[variables('secondaryWebAppName')]",
+      "type": "Microsoft.Web/sites",
+      "location": "[parameters('secondaryRegion')]",
+      "apiVersion": "2015-08-01",
+      "dependsOn": [
+        "[concat('Microsoft.Web/serverfarms/', variables('secondaryAppServicePlanName'))]"
+      ],
+      "properties": {
+        "name": "[variables('secondaryWebAppName')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms/', variables('secondaryAppServicePlanName'))]"
+      },
+      "resources": [
+        {
+          "name": "appsettings",
+          "type": "config",
+          "apiVersion": "2015-08-01",
+          "dependsOn": [
+            "[concat('Microsoft.Web/sites/', variables('secondaryWebAppName'))]"
+          ],
+          "properties": {
+            "MySettings:WebApp": "Secondary",
+            "MySettings:SqlConnectionString": "[concat('Data Source=tcp:', reference(concat('Microsoft.Sql/servers/', variables('secondarySqlServerName'))).fullyQualifiedDomainName, ',1433;Initial Catalog=', variables('dbName'), ';User Id=', parameters('sqlServerAdminLogin'), '@', variables('secondarySqlServerName'), ';Password=', parameters('sqlServerAdminLoginPassword'), ';')]"
+          }
+        },
+        {
+          "apiVersion": "2015-08-01",
+          "name": "web",
+          "type": "sourcecontrols",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/Sites', variables('secondaryWebAppName'))]",
+            "appsettings"
+          ],
+          "properties": {
+            "RepoUrl": "[parameters('repoURL')]",
+            "branch": "[parameters('branch')]",
+            "IsManualIntegration": false
+          }
+        }
+      ]
+    },
+    {
+      "apiVersion": "2015-11-01",
+      "type": "Microsoft.Network/trafficManagerProfiles",
+      "name": "trafficManagerEndpoint",
+      "location": "global",
+      "dependsOn": [
+        "[concat('Microsoft.Web/sites/', variables('primaryWebAppName'))]",
+        "[concat('Microsoft.Web/sites/', variables('secondaryWebAppName'))]"
+      ],
+      "properties": {
+        "profileStatus": "Enabled",
+        "trafficRoutingMethod": "Priority",
+        "dnsConfig": {
+          "relativeName": "[parameters('appName')]",
+          "ttl": 30
+        },
+        "monitorConfig": {
+          "protocol": "http",
+          "port": 80,
+          "path": "/"
+        },
+        "endpoints": [
+          {
+            "name": "[variables('primaryWebAppName')]",
+            "type": "Microsoft.Network/trafficManagerProfiles/azureEndpoints",
+            "properties": {
+              "targetResourceId": "[resourceId('Microsoft.Web/sites/',variables('primaryWebAppName'))]",
+              "endpointStatus": "Enabled",
+              "priority": 1
+            }
+          },
+          {
+            "name": "[variables('secondaryWebAppName')]",
+            "type": "Microsoft.Network/trafficManagerProfiles/azureEndpoints",
+            "properties": {
+              "targetResourceId": "[resourceId('Microsoft.Web/sites/',variables('secondaryWebAppName'))]",
+              "endpointStatus": "Disabled",
+              "priority": 2
+            }
+          }
+        ]
       }
     }
   ]
