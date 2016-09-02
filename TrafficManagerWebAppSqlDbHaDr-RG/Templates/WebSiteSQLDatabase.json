@@ -8,7 +8,8 @@
       "defaultValue": "[variables('uniqueString')]"
     },
     "region": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "Central US"
     },
     "appServicePlanSKU": {
       "type": "string",
@@ -43,7 +44,8 @@
       "defaultValue": "[variables('uniqueString')]"
     },
     "sqlServerAdminLoginPassword": {
-      "type": "securestring"
+      "type": "securestring",
+      "defaultValue": "Pass@word1"
     },
     "sqlDbCollation": {
       "type": "string",
