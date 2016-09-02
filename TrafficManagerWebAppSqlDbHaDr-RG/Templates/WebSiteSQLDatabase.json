@@ -5,7 +5,10 @@
     "appName": {
       "type": "string",
       "minLength": 1,
-      "defaultValue": "[uniqueString(resourceGroup().id)]"
+      "defaultValue": "[variables('uniqueString')]"
+    },
+    "region": {
+      "type": "string"
     },
     "appServicePlanSKU": {
       "type": "string",
@@ -37,7 +40,7 @@
     "sqlServerAdminLogin": {
       "type": "string",
       "minLength": 1,
-      "defaultValue": "[uniqueString(resourceGroup().id)]"
+      "defaultValue": "[variables('uniqueString')]"
     },
     "sqlServerAdminLoginPassword": {
       "type": "securestring"
@@ -77,8 +80,10 @@
   "variables": {
     "primaryWebappName": "[concat(parameters('appName'),'-primary-wa')]",
     "primaryAppServicePlanName": "[concat(parameters('appName'),'-primary-asp')]",
+    "secondaryAppServicePlanName": "[concat(parameters('appName'),'-secondary-asp')]",
     "primarySqlServerName": "[concat(parameters('appName'),'-primary-sqlserver')]",
-    "primarySqlDbName": "[concat(parameters('appName'),'-primary-db')]"
+    "primarySqlDbName": "[concat(parameters('appName'),'-primary-db')]",
+    "uniqueString": "[uniqueString(resourceGroup().id)]"
   },
   "resources": [
 
@@ -179,6 +184,17 @@
           }
         }
       ]
-    }
+    },
+      {
+          "name": "[parameters('secondaryAppServicePlanName')]",
+          "type": "Microsoft.Web/serverfarms",
+          "location": "[parameters('region')]",
+          "apiVersion": "2014-06-01",
+          "dependsOn": [ ],
+        "properties": {
+          "name": "[variables('secondaryAppServicePlanName')]",
+          "sku": "Free"
+        }
+      }
   ]
 }
