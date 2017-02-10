@@ -1,15 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using NuGet.Versioning;
 using TrafficManagerWebAppSqlDbHaDr.Models;
 
 namespace TrafficManagerWebAppSqlDbHaDr
@@ -20,8 +15,8 @@ namespace TrafficManagerWebAppSqlDbHaDr
         {
             var builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
+                .AddJsonFile("appsettings.json", true, true)
+                .AddJsonFile($"appsettings.{env.EnvironmentName}.json", true)
                 .AddEnvironmentVariables();
             Configuration = builder.Build();
         }
@@ -44,11 +39,13 @@ namespace TrafficManagerWebAppSqlDbHaDr
             services.AddSingleton<IConfiguration>(Configuration);
 
             //TODO: Figure out how to make this use the MySettings.cs class
-            services.AddDbContext<AppDbContext>(options => options.UseSqlServer(Configuration["MySettings:SqlConnectionString"]));
+            services.AddDbContext<AppDbContext>(
+                options => options.UseSqlServer(Configuration["MySettings:SqlConnectionString"]));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, AppDbContext dbContext)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory,
+            AppDbContext dbContext)
         {
             //TODO: Figure out how to do this with kudu and dnx
             dbContext.Database.Migrate();
@@ -77,8 +74,8 @@ namespace TrafficManagerWebAppSqlDbHaDr
             app.UseMvc(routes =>
             {
                 routes.MapRoute(
-                    name: "default",
-                    template: "{controller=Home}/{action=Index}/{id?}");
+                    "default",
+                    "{controller=Home}/{action=Index}/{id?}");
             });
         }
     }

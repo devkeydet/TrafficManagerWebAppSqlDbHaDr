@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "outputs": {
 
-  }
+  },
   "parameters": {
     "appName": {
       "type": "string",
@@ -12,7 +12,7 @@
     },
     "secondaryRegion": {
       "type": "string",
-      "defaultValue": "Central US"
+      "defaultValue": "southcentralus"
     },
     "appServicePlanSKU": {
       "type": "string",
