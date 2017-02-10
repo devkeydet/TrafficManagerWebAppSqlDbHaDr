@@ -222,8 +222,7 @@
           "location": "[parameters('secondaryRegion')]",
           "apiVersion": "2014-04-01-preview",
           "dependsOn": [
-            "[concat('Microsoft.Sql/servers/', variables('secondarySqlServerName'))]"//,
-            //"[concat('Microsoft.Sql/servers/databases', variables('primarySqlServerName'), variables('dbName'))]"
+            "[concat('Microsoft.Sql/servers/', variables('secondarySqlServerName'))]"
           ],
           "tags": {
             "displayName": "sqlDb"
