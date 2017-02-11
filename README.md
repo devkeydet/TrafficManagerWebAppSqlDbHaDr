@@ -5,4 +5,4 @@
 ## Overview
 This is a sample ARM template to deploy a Web App / SQL DB to two regions and configure both Traffic Manager in front of the Web Apps and SQL Geo-Replication for the databases.  It also deploys an ASP.NET Core MVC app from this repo.
 
-[TODO: Insert Visio diagram]
+![Diagram of architecture](/Diagrams/Diagram.jpg)
